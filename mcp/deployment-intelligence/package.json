@@ -1,0 +1,29 @@
+{
+  "name": "@sentinelforge/deployment-intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server providing deployment intelligence tools for SentinelForge",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "dev": "tsx src/index.ts",
+    "build": "npm run clean && tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "express": "^5.1.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^6.0.0",
+    "vitest": "^3.0.0"
+  }
+}
