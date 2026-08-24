@@ -8,6 +8,8 @@ import { z } from "zod";
 
 import { getIncident } from "./tools/get-incident.js";
 import { getServiceMetrics } from "./tools/get-service-metrics.js";
+import { searchServiceLogs } from "./tools/search-service-logs.js";
+
 const PORT = Number(process.env.PORT ?? 3001);
 
 function createMcpServer(): McpServer {
@@ -16,13 +18,30 @@ function createMcpServer(): McpServer {
     version: "0.1.0",
   });
 
-  server.tool(
+  const incidentOutputSchema = {
+    id: z.string(),
+    title: z.string(),
+    service: z.string(),
+    environment: z.string(),
+    severity: z.enum(["SEV1", "SEV2", "SEV3"]),
+    status: z.enum(["open", "investigating", "resolved"]),
+    startedAt: z.string(),
+    detectedAt: z.string(),
+    summary: z.string(),
+    symptoms: z.array(z.string()),
+  };
+
+  server.registerTool(
     "get_incident",
-    "Retrieve the current details of a production incident by incident ID.",
     {
-      incidentId: z
-        .string()
-        .describe("Incident identifier, for example INC-2026-001"),
+      description:
+        "Retrieve the current details of a production incident by incident ID.",
+      inputSchema: {
+        incidentId: z
+          .string()
+          .describe("Incident identifier, for example INC-2026-001"),
+      },
+      outputSchema: incidentOutputSchema,
     },
     async ({ incidentId }) => {
       const incident = getIncident(incidentId);
@@ -35,10 +54,16 @@ function createMcpServer(): McpServer {
               text: `Incident ${incidentId} was not found.`,
             },
           ],
+          isError: true,
         };
       }
 
+      const structuredContent: Record<string, unknown> = {
+        ...incident,
+      };
+
       return {
+        structuredContent,
         content: [
           {
             type: "text",
@@ -48,24 +73,42 @@ function createMcpServer(): McpServer {
       };
     },
   );
-  server.tool(
+  const serviceMetricSchema = z.object({
+    timestamp: z.string(),
+    service: z.string(),
+    environment: z.string(),
+    requestCount: z.number(),
+    errorRatePercent: z.number(),
+    p95LatencyMs: z.number(),
+  });
+
+  server.registerTool(
     "get_service_metrics",
-    "Retrieve service error-rate and latency metrics for an environment and optional time range.",
     {
-      service: z
-        .string()
-        .describe("Service name, for example checkout-service"),
-      environment: z
-        .string()
-        .describe("Deployment environment, for example production"),
-      startTime: z
-        .string()
-        .optional()
-        .describe("Optional ISO-8601 start timestamp"),
-      endTime: z
-        .string()
-        .optional()
-        .describe("Optional ISO-8601 end timestamp"),
+      description:
+        "Retrieve service error-rate and latency metrics for an environment and optional time range.",
+      inputSchema: {
+        service: z
+          .string()
+          .describe("Service name, for example checkout-service"),
+        environment: z
+          .string()
+          .describe("Deployment environment, for example production"),
+        startTime: z
+          .string()
+          .optional()
+          .describe("Optional ISO-8601 start timestamp"),
+        endTime: z
+          .string()
+          .optional()
+          .describe("Optional ISO-8601 end timestamp"),
+      },
+      outputSchema: {
+        service: z.string(),
+        environment: z.string(),
+        count: z.number(),
+        metrics: z.array(serviceMetricSchema),
+      },
     },
     async ({ service, environment, startTime, endTime }) => {
       const metrics = getServiceMetrics({
@@ -75,20 +118,100 @@ function createMcpServer(): McpServer {
         endTime,
       });
 
+      const result = {
+        service,
+        environment,
+        count: metrics.length,
+        metrics,
+      };
+
+      const structuredContent: Record<string, unknown> = {
+        ...result,
+      };
+
       return {
+        structuredContent,
         content: [
           {
             type: "text",
-            text: JSON.stringify(
-              {
-                service,
-                environment,
-                count: metrics.length,
-                metrics,
-              },
-              null,
-              2,
-            ),
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    },
+  );
+  const serviceLogSchema = z.object({
+    timestamp: z.string(),
+    service: z.string(),
+    environment: z.string(),
+    level: z.enum(["INFO", "WARN", "ERROR"]),
+    traceId: z.string(),
+    message: z.string(),
+  });
+
+  server.registerTool(
+    "search_service_logs",
+    {
+      description:
+        "Search application logs for a service by environment, time range, log level, and optional text query.",
+      inputSchema: {
+        service: z
+          .string()
+          .describe("Service name, for example checkout-service"),
+        environment: z
+          .string()
+          .describe("Deployment environment, for example production"),
+        startTime: z
+          .string()
+          .optional()
+          .describe("Optional ISO-8601 start timestamp"),
+        endTime: z
+          .string()
+          .optional()
+          .describe("Optional ISO-8601 end timestamp"),
+        level: z
+          .enum(["INFO", "WARN", "ERROR"])
+          .optional()
+          .describe("Optional log level filter"),
+        query: z
+          .string()
+          .optional()
+          .describe("Optional case-insensitive text search"),
+      },
+      outputSchema: {
+        service: z.string(),
+        environment: z.string(),
+        count: z.number(),
+        logs: z.array(serviceLogSchema),
+      },
+    },
+    async ({ service, environment, startTime, endTime, level, query }) => {
+      const logs = searchServiceLogs({
+        service,
+        environment,
+        startTime,
+        endTime,
+        level,
+        query,
+      });
+
+      const result = {
+        service,
+        environment,
+        count: logs.length,
+        logs,
+      };
+
+      const structuredContent: Record<string, unknown> = {
+        ...result,
+      };
+
+      return {
+        structuredContent,
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
           },
         ],
       };
