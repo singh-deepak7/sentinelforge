@@ -7,13 +7,13 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 import { getIncident } from "./tools/get-incident.js";
-
+import { getServiceMetrics } from "./tools/get-service-metrics.js";
 const PORT = Number(process.env.PORT ?? 3001);
 
 function createMcpServer(): McpServer {
   const server = new McpServer({
     name: "sentinelforge-incident-observability",
-    version: "0.1.0"
+    version: "0.1.0",
   });
 
   server.tool(
@@ -22,7 +22,7 @@ function createMcpServer(): McpServer {
     {
       incidentId: z
         .string()
-        .describe("Incident identifier, for example INC-2026-001")
+        .describe("Incident identifier, for example INC-2026-001"),
     },
     async ({ incidentId }) => {
       const incident = getIncident(incidentId);
@@ -32,9 +32,9 @@ function createMcpServer(): McpServer {
           content: [
             {
               type: "text",
-              text: `Incident ${incidentId} was not found.`
-            }
-          ]
+              text: `Incident ${incidentId} was not found.`,
+            },
+          ],
         };
       }
 
@@ -42,11 +42,57 @@ function createMcpServer(): McpServer {
         content: [
           {
             type: "text",
-            text: JSON.stringify(incident, null, 2)
-          }
-        ]
+            text: JSON.stringify(incident, null, 2),
+          },
+        ],
       };
-    }
+    },
+  );
+  server.tool(
+    "get_service_metrics",
+    "Retrieve service error-rate and latency metrics for an environment and optional time range.",
+    {
+      service: z
+        .string()
+        .describe("Service name, for example checkout-service"),
+      environment: z
+        .string()
+        .describe("Deployment environment, for example production"),
+      startTime: z
+        .string()
+        .optional()
+        .describe("Optional ISO-8601 start timestamp"),
+      endTime: z
+        .string()
+        .optional()
+        .describe("Optional ISO-8601 end timestamp"),
+    },
+    async ({ service, environment, startTime, endTime }) => {
+      const metrics = getServiceMetrics({
+        service,
+        environment,
+        startTime,
+        endTime,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                service,
+                environment,
+                count: metrics.length,
+                metrics,
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
   );
 
   return server;
@@ -70,7 +116,7 @@ app.post("/mcp", async (req, res) => {
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (newSessionId) => {
         transports.set(newSessionId, transport);
-      }
+      },
     });
 
     transport.onclose = () => {
@@ -84,7 +130,7 @@ app.post("/mcp", async (req, res) => {
     await server.connect(transport);
   } else {
     res.status(400).json({
-      error: "Invalid MCP request"
+      error: "Invalid MCP request",
     });
 
     return;
@@ -98,7 +144,7 @@ app.get("/mcp", async (req, res) => {
 
   if (!sessionId || !transports.has(sessionId)) {
     res.status(400).json({
-      error: "Missing or invalid MCP session"
+      error: "Missing or invalid MCP session",
     });
 
     return;
@@ -114,7 +160,7 @@ app.delete("/mcp", async (req, res) => {
 
   if (!sessionId || !transports.has(sessionId)) {
     res.status(400).json({
-      error: "Missing or invalid MCP session"
+      error: "Missing or invalid MCP session",
     });
 
     return;
@@ -128,12 +174,12 @@ app.delete("/mcp", async (req, res) => {
 app.get("/health", (_req, res) => {
   res.json({
     status: "ok",
-    service: "sentinelforge-incident-observability"
+    service: "sentinelforge-incident-observability",
   });
 });
 
 app.listen(PORT, () => {
   console.error(
-    `SentinelForge Incident Observability MCP server listening on port ${PORT}`
+    `SentinelForge Incident Observability MCP server listening on port ${PORT}`,
   );
 });
