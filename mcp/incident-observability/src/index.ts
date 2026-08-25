@@ -9,6 +9,7 @@ import { z } from "zod";
 import { getIncident } from "./tools/get-incident.js";
 import { getServiceMetrics } from "./tools/get-service-metrics.js";
 import { searchServiceLogs } from "./tools/search-service-logs.js";
+import { verifyServiceRecovery } from "./tools/verify-service-recovery.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
 
@@ -201,6 +202,52 @@ function createMcpServer(): McpServer {
         count: logs.length,
         logs,
       };
+
+      const structuredContent: Record<string, unknown> = {
+        ...result,
+      };
+
+      return {
+        structuredContent,
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  const recoveryVerificationSchema = z.object({
+    service: z.string(),
+    environment: z.string(),
+    recovered: z.boolean(),
+    timeoutMs: z.number(),
+    errorRatePercent: z.number(),
+    p95LatencyMs: z.number(),
+    paymentTimeoutCount: z.number(),
+    observationWindowMinutes: z.number(),
+    reason: z.string(),
+  });
+  server.registerTool(
+    "verify_service_recovery",
+    {
+      description:
+        "Verify whether a production service has recovered after remediation by checking the current simulated production state and post-remediation health indicators.",
+      inputSchema: {},
+      outputSchema: recoveryVerificationSchema,
+      annotations: {
+        title: "Verify service recovery",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async () => {
+      //const result = verifyServiceRecovery();
+      const result = await verifyServiceRecovery();
 
       const structuredContent: Record<string, unknown> = {
         ...result,

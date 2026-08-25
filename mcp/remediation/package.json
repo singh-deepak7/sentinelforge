@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@sentinelforge/production-state": "file:../../shared/production-state",
     "express": "^5.2.1",
     "zod": "^4.4.3"
   },

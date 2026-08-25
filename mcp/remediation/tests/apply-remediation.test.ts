@@ -1,13 +1,20 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import {
+  resetProductionState,
+  getProductionState
+} from "@sentinelforge/production-state";
 
-import { productionConfiguration } from "../src/data/production-state.js";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it
+} from "vitest";
+
 import { applyRemediation } from "../src/tools/apply-remediation.js";
 
 describe("applyRemediation", () => {
   beforeEach(() => {
-    productionConfiguration.values[
-      "payment.authorization.timeoutMs"
-    ] = 500;
+    resetProductionState();
   });
 
   it("applies the proposed configuration value", () => {
@@ -17,11 +24,22 @@ describe("applyRemediation", () => {
     expect(result?.previousValue).toBe(500);
     expect(result?.appliedValue).toBe(3000);
 
+    const state = getProductionState();
+
     expect(
-      productionConfiguration.values[
-        "payment.authorization.timeoutMs"
-      ]
+      state.paymentAuthorizationTimeoutMs
     ).toBe(3000);
+  });
+
+  it("records remediation state", () => {
+    applyRemediation("REM-2026-001");
+
+    const state = getProductionState();
+
+    expect(state.remediationApplied).toBe(true);
+    expect(state.activeRemediationId).toBe(
+      "REM-2026-001"
+    );
   });
 
   it("returns execution metadata", () => {

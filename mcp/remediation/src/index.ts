@@ -108,7 +108,8 @@ function createMcpServer(): McpServer {
       },
     },
     async ({ remediationId }) => {
-      const result = applyRemediation(remediationId);
+      //const result = applyRemediation(remediationId);
+      const result = await applyRemediation(remediationId);
 
       if (!result) {
         return {
