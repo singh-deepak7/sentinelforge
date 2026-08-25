@@ -1,4 +1,8 @@
-import { productionConfiguration } from "../data/production-state.js";
+import {
+  getProductionState,
+  updateProductionState
+} from "@sentinelforge/production-state";
+
 import { remediationPlans } from "../data/remediations.js";
 
 export interface ApplyRemediationResult {
@@ -13,9 +17,9 @@ export interface ApplyRemediationResult {
   message: string;
 }
 
-export function applyRemediation(
+export async function applyRemediation(
   remediationId: string
-): ApplyRemediationResult | null {
+): Promise<ApplyRemediationResult | null> {
   const plan = remediationPlans.find(
     (item) => item.id === remediationId
   );
@@ -24,11 +28,21 @@ export function applyRemediation(
     return null;
   }
 
-  const previousValue =
-    productionConfiguration.values[plan.configurationKey];
+  const currentState =
+    await getProductionState();
 
-  productionConfiguration.values[plan.configurationKey] =
-    plan.proposedValue;
+  const previousValue =
+    currentState.paymentAuthorizationTimeoutMs;
+
+  await updateProductionState({
+    paymentAuthorizationTimeoutMs:
+      plan.proposedValue,
+
+    remediationApplied: true,
+
+    activeRemediationId:
+      plan.id
+  });
 
   return {
     remediationId: plan.id,

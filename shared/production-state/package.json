@@ -1,0 +1,28 @@
+{
+  "name": "@sentinelforge/production-state",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared production simulation state for SentinelForge MCP servers",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "^6.0.0",
+    "vitest": "^4.1.0"
+  }
+}
